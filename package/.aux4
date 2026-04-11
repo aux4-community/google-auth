@@ -1,0 +1,132 @@
+{
+  "scope": "community",
+  "name": "google-auth",
+  "version": "1.0.2",
+  "description": "Authentication for Google Workspace CLI packages",
+  "license": "MIT",
+  "tags": [
+    "google",
+    "auth",
+    "oauth",
+    "google-workspace",
+    "gws"
+  ],
+  "system": [
+    [
+      "test:gws --version",
+      "brew:googleworkspace-cli",
+      "npm:@googleworkspace/cli"
+    ]
+  ],
+  "profiles": [
+    {
+      "name": "main",
+      "commands": [
+        {
+          "name": "google",
+          "execute": [
+            "profile:google"
+          ],
+          "help": {
+            "text": "Google commands"
+          }
+        }
+      ]
+    },
+    {
+      "name": "google",
+      "commands": [
+        {
+          "name": "auth",
+          "execute": [
+            "profile:google:auth"
+          ],
+          "help": {
+            "text": "Manage Google authentication"
+          }
+        },
+        {
+          "name": "services",
+          "execute": [
+            "profile:google:services"
+          ],
+          "help": {
+            "text": "List available Google Workspace services"
+          }
+        }
+      ]
+    },
+    {
+      "name": "google:auth",
+      "commands": [
+        {
+          "name": "login",
+          "execute": [
+            "mkdir -p ~/.config/gws && cp -n ${packageDir}/lib/client_secret.json ~/.config/gws/client_secret.json 2>/dev/null || true",
+            "gws auth login param(services) param(readonly)"
+          ],
+          "help": {
+            "text": "Authenticate with Google (opens browser)",
+            "variables": [
+              {
+                "name": "services",
+                "text": "Comma-separated services to authorize (e.g. sheets,drive)",
+                "default": ""
+              },
+              {
+                "name": "readonly",
+                "text": "Request read-only scopes",
+                "default": ""
+              }
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "execute": [
+            "gws auth status"
+          ],
+          "help": {
+            "text": "Show current authentication status"
+          }
+        },
+        {
+          "name": "logout",
+          "execute": [
+            "gws auth logout"
+          ],
+          "help": {
+            "text": "Clear saved credentials and token cache"
+          }
+        }
+      ]
+    },
+    {
+      "name": "google:services",
+      "commands": [
+        {
+          "name": "list",
+          "execute": [
+            "printf '\\033[33mdrive\\033[0m\\nManage files, folders, and shared drives\\n\\n'",
+            "printf '\\033[33msheets\\033[0m\\nRead and write spreadsheets\\n\\n'",
+            "printf '\\033[33mgmail\\033[0m\\nSend, read, and manage email\\n\\n'",
+            "printf '\\033[33mcalendar\\033[0m\\nManage calendars and events\\n\\n'",
+            "printf '\\033[33mdocs\\033[0m\\nRead and write Google Docs\\n\\n'",
+            "printf '\\033[33mslides\\033[0m\\nRead and write presentations\\n\\n'",
+            "printf '\\033[33mtasks\\033[0m\\nManage task lists and tasks\\n\\n'",
+            "printf '\\033[33mpeople\\033[0m\\nManage contacts and profiles\\n\\n'",
+            "printf '\\033[33mchat\\033[0m\\nManage Chat spaces and messages\\n\\n'",
+            "printf '\\033[33mclassroom\\033[0m\\nManage classes, rosters, and coursework\\n\\n'",
+            "printf '\\033[33mforms\\033[0m\\nRead and write Google Forms\\n\\n'",
+            "printf '\\033[33mkeep\\033[0m\\nManage Google Keep notes\\n\\n'",
+            "printf '\\033[33mmeet\\033[0m\\nManage Google Meet conferences\\n\\n'",
+            "printf '\\033[33mscript\\033[0m\\nManage Google Apps Script projects\\n'"
+          ],
+          "help": {
+            "text": "List available Google Workspace services"
+          }
+        }
+      ]
+    }
+  ]
+}
