@@ -1,7 +1,7 @@
 {
   "scope": "community",
   "name": "google-auth",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Authentication for Google Workspace CLI packages",
   "license": "MIT",
   "tags": [
