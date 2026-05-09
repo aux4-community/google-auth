@@ -9,11 +9,12 @@ On first run, if no OAuth credentials exist at `~/.config/gws/client_secret.json
 #### Usage
 
 ```bash
-aux4 google auth login [--services <services>] [--readonly]
+aux4 google auth login [--services <services>] [--readonly] [--tee <true|false>]
 ```
 
 --services  Comma-separated services to authorize (e.g. sheets,drive)
 --readonly  Request read-only scopes
+--tee       Output login URL to stdout (default: false). Use when running from an AI agent so the URL can be captured via `jobs output`.
 
 #### Example
 

@@ -67,6 +67,23 @@ List all available Google Workspace services:
 aux4 google services list
 ```
 
+### Login from an AI Agent
+
+When an AI agent needs to authenticate, it can't open a browser interactively. Use `--tee true` to redirect the login URL to stdout so the agent can capture it:
+
+```bash
+# Start login as a background job
+aux4 jobs run "aux4 google auth login --services sheets,drive --tee true"
+
+# Read the job output to get the login URL
+aux4 jobs output <job-id>
+
+# Give the URL to the user. The job stays running until they complete the OAuth flow.
+# After the user confirms, retry the original Google command.
+```
+
+The `--tee true` flag copies stderr (where the URL is printed) to stdout, making it available via `jobs output`. Without it, the URL only appears on stderr which background jobs don't expose.
+
 ### Status
 
 Show the current authentication state, including whether you have valid credentials and which project is configured.

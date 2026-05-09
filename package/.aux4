@@ -1,7 +1,7 @@
 {
   "scope": "community",
   "name": "google-auth",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Authentication for Google Workspace CLI packages",
   "license": "MIT",
   "tags": [
@@ -63,7 +63,7 @@
           "name": "login",
           "execute": [
             "mkdir -p ~/.config/gws && cp -n ${packageDir}/lib/client_secret.json ~/.config/gws/client_secret.json 2>/dev/null || true",
-            "gws auth login param(services) param(readonly)"
+            "if(tee==true) && gws auth login param(services) param(readonly) 2>&1 || gws auth login param(services) param(readonly)"
           ],
           "help": {
             "text": "Authenticate with Google (opens browser)",
@@ -77,6 +77,12 @@
                 "name": "readonly",
                 "text": "Request read-only scopes",
                 "default": ""
+              },
+              {
+                "name": "tee",
+                "text": "Output login URL to stdout (for agent use)",
+                "default": "false",
+                "hide": true
               }
             ]
           }
