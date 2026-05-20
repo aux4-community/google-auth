@@ -1,7 +1,7 @@
 {
   "scope": "community",
   "name": "google-auth",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Authentication for Google Workspace CLI packages",
   "license": "MIT",
   "tags": [
@@ -51,7 +51,7 @@
             "profile:google:services"
           ],
           "help": {
-            "text": "List available Google Workspace services"
+            "text": "List available Google services"
           }
         }
       ]
@@ -63,14 +63,21 @@
           "name": "login",
           "execute": [
             "mkdir -p ~/.config/gws && cp -n ${packageDir}/lib/client_secret.json ~/.config/gws/client_secret.json 2>/dev/null || true",
-            "if(tee==true) && gws auth login param(services) param(readonly) 2>&1 || gws auth login param(services) param(readonly)"
+            "nout:if [ -z '${services}' ]; then aux4 google services list --json true; else echo '${services}' | tr ',' '\\n' | while read -r svc; do aux4 google \"$svc\" services 2>/dev/null; done | jq -s '.'; fi | tee /tmp/.aux4-google-services.json | jq -r 'map(.scope) | unique | join(\",\")'",
+            "set:scopes=${response}",
+            "set:serviceNames=!jq -r 'map(.name) | join(\", \")' /tmp/.aux4-google-services.json",
+            "gws auth login --scopes '${scopes}' param(readonly) | jq -r '.message // empty'",
+            "nout:gws auth status 2>/dev/null | jq -r '.user'",
+            "log:Authenticated as ${response}",
+            "log:Services: ${serviceNames}",
+            "nout:rm -f /tmp/.aux4-google-services.json"
           ],
           "help": {
-            "text": "Authenticate with Google (opens browser)",
+            "text": "Authenticate with all installed Google services",
             "variables": [
               {
                 "name": "services",
-                "text": "Comma-separated services to authorize (e.g. sheets,drive)",
+                "text": "Comma-separated services to authorize (default: all installed)",
                 "default": ""
               },
               {
@@ -113,23 +120,19 @@
         {
           "name": "list",
           "execute": [
-            "printf '\\033[33mdrive\\033[0m\\nManage files, folders, and shared drives\\n\\n'",
-            "printf '\\033[33msheets\\033[0m\\nRead and write spreadsheets\\n\\n'",
-            "printf '\\033[33mgmail\\033[0m\\nSend, read, and manage email\\n\\n'",
-            "printf '\\033[33mcalendar\\033[0m\\nManage calendars and events\\n\\n'",
-            "printf '\\033[33mdocs\\033[0m\\nRead and write Google Docs\\n\\n'",
-            "printf '\\033[33mslides\\033[0m\\nRead and write presentations\\n\\n'",
-            "printf '\\033[33mtasks\\033[0m\\nManage task lists and tasks\\n\\n'",
-            "printf '\\033[33mpeople\\033[0m\\nManage contacts and profiles\\n\\n'",
-            "printf '\\033[33mchat\\033[0m\\nManage Chat spaces and messages\\n\\n'",
-            "printf '\\033[33mclassroom\\033[0m\\nManage classes, rosters, and coursework\\n\\n'",
-            "printf '\\033[33mforms\\033[0m\\nRead and write Google Forms\\n\\n'",
-            "printf '\\033[33mkeep\\033[0m\\nManage Google Keep notes\\n\\n'",
-            "printf '\\033[33mmeet\\033[0m\\nManage Google Meet conferences\\n\\n'",
-            "printf '\\033[33mscript\\033[0m\\nManage Google Apps Script projects\\n'"
+            "nout:aux4 google --json | jq -r '[.[] | select(.name != \"auth\" and .name != \"services\") | .name] | .[]' | while read -r svc; do aux4 google \"$svc\" services 2>/dev/null; done | jq -s 'unique_by(.name)'",
+            "if(json==true) && echo '${response}' || echo '${response}' | jq -r '.[] | \"\\u001b[33m\\(.name)\\u001b[0m\\n  \\(.description)\\n  scope: \\(.scope)\\n\"'"
           ],
           "help": {
-            "text": "List available Google Workspace services"
+            "text": "List available Google services from installed packages",
+            "variables": [
+              {
+                "name": "json",
+                "text": "Output as JSON",
+                "default": "false",
+                "hide": true
+              }
+            ]
           }
         }
       ]
