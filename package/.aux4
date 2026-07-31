@@ -1,7 +1,7 @@
 {
   "scope": "community",
   "name": "google-auth",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "OAuth2 authentication for aux4 Google packages",
   "license": "MIT",
   "tags": [
