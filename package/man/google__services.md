@@ -16,4 +16,5 @@ aux4 google services <subcommand>
 
 ```bash
 aux4 google services list
+aux4 google services list --services sheets,drive --json true
 ```

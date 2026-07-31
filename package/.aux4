@@ -1,21 +1,25 @@
 {
   "scope": "community",
   "name": "google-auth",
-  "version": "1.2.0",
-  "description": "Authentication for Google Workspace CLI packages",
+  "version": "1.4.0",
+  "description": "OAuth2 authentication for aux4 Google packages",
   "license": "MIT",
   "tags": [
     "google",
     "auth",
     "oauth",
-    "google-workspace",
-    "gws"
+    "google-workspace"
+  ],
+  "dependencies": [
+    "aux4/curl",
+    "aux4/json",
+    "aux4/render"
   ],
   "system": [
     [
-      "test:gws --version",
-      "brew:googleworkspace-cli",
-      "npm:@googleworkspace/cli"
+      "test:jq --version",
+      "brew:jq",
+      "linux:jq"
     ]
   ],
   "profiles": [
@@ -62,15 +66,19 @@
         {
           "name": "login",
           "execute": [
-            "mkdir -p ~/.config/gws && cp -n ${packageDir}/lib/client_secret.json ~/.config/gws/client_secret.json 2>/dev/null || true",
-            "nout:if [ -z '${services}' ]; then aux4 google services list --json true; else echo '${services}' | tr ',' '\\n' | while read -r svc; do aux4 google \"$svc\" services 2>/dev/null; done | jq -s '.'; fi | tee /tmp/.aux4-google-services.json | jq -r 'map(.scope) | unique | join(\",\")'",
-            "set:scopes=${response}",
-            "set:serviceNames=!jq -r 'map(.name) | join(\", \")' /tmp/.aux4-google-services.json",
-            "gws auth login --scopes '${scopes}' param(readonly) | jq -r '.message // empty'",
-            "nout:gws auth status 2>/dev/null | jq -r '.user'",
-            "log:Authenticated as ${response}",
-            "log:Services: ${serviceNames}",
-            "nout:rm -f /tmp/.aux4-google-services.json"
+            "when:${clientId}==:exit:1:No OAuth client id. Pass --clientId, or set GOOGLE_CLIENT_ID (a plain value or a secret:// reference). See the README section 'OAuth client setup'.",
+            "json:aux4 google services list param(services) --json true | GOOGLE_AUTH_READONLY=value(readonly) jq '{scopes:(map(if env.GOOGLE_AUTH_READONLY == \"true\" then (if (.readonlyScope // \"\") == \"\" then .scope else .readonlyScope end) else .scope end) | map(split(\" \")) | flatten | . + [\"openid\", \"email\"] | map(select(. != \"\")) | unique | join(\" \")), names:(map(.name) | join(\", \")), missingReadonly:(map(select((.readonlyScope // \"\") == \"\") | .name) | join(\", \"))}'",
+            "set:requested=$response",
+            "when:${requested.names}==:exit:1:No Google service packages installed. Install one (for example community/google-drive) and try again.",
+            "when:${readonly}==true && ${requested.missingReadonly}!=:log:These services do not declare a readonlyScope, so their full read-write scope was requested: ${requested.missingReadonly}",
+            "# TODO(security): clientSecret is still passed on argv (visible via ps) through params(clientId,clientSecret). params() shell-escapes it (no injection), but moving the secret off argv entirely (env/stdin into aux4 curl oauth login) is a follow-up.",
+            "aux4 curl oauth login google params(clientId,clientSecret) --authUrl 'https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&prompt=consent&include_granted_scopes=true' --tokenUrl 'https://oauth2.googleapis.com/token' param(requested.scopes:scopes) param(tokenFile)",
+            "nout:aux4 curl auth-request --provider google param(tokenFile) --url https://www.googleapis.com/oauth2/v3/userinfo >ignoreError | jq -sRr 'fromjson? | .email? // empty'",
+            "set:account=$response",
+            "when:${account}!=:log:Authenticated as ${account}",
+            "when:${account}==:log:Authenticated. The account email could not be retrieved (the userinfo request returned nothing); this does not affect the token.",
+            "log:Services: ${requested.names}",
+            "log:Token file: ${tokenFile}"
           ],
           "help": {
             "text": "Authenticate with all installed Google services",
@@ -82,14 +90,27 @@
               },
               {
                 "name": "readonly",
-                "text": "Request read-only scopes",
-                "default": ""
+                "text": "Request read-only scopes where the service declares one",
+                "default": "false"
               },
               {
-                "name": "tee",
-                "text": "Output login URL to stdout (for agent use)",
-                "default": "false",
+                "name": "clientId",
+                "text": "Google Cloud OAuth client id of a Desktop app client",
+                "default": "",
+                "env": "GOOGLE_CLIENT_ID"
+              },
+              {
+                "name": "clientSecret",
+                "text": "Google Cloud OAuth client secret of the same Desktop app client",
+                "default": "",
+                "env": "GOOGLE_CLIENT_SECRET",
                 "hide": true
+              },
+              {
+                "name": "tokenFile",
+                "text": "Where the OAuth token is stored",
+                "default": "${aux4HomeDir}/.oauth/google.json",
+                "env": "AUX4_GOOGLE_TOKEN_FILE"
               }
             ]
           }
@@ -97,19 +118,37 @@
         {
           "name": "status",
           "execute": [
-            "gws auth status"
+            "aux4 curl oauth status google param(tokenFile)",
+            "nout:aux4 curl auth-request --provider google param(tokenFile) --url https://www.googleapis.com/oauth2/v3/userinfo >ignoreError | jq -sRr 'fromjson? | .email? // empty'",
+            "when:${response}!=:log:Account:       ${response}"
           ],
           "help": {
-            "text": "Show current authentication status"
+            "text": "Show current authentication status",
+            "variables": [
+              {
+                "name": "tokenFile",
+                "text": "Where the OAuth token is stored",
+                "default": "${aux4HomeDir}/.oauth/google.json",
+                "env": "AUX4_GOOGLE_TOKEN_FILE"
+              }
+            ]
           }
         },
         {
           "name": "logout",
           "execute": [
-            "gws auth logout"
+            "aux4 curl oauth logout google param(tokenFile)"
           ],
           "help": {
-            "text": "Clear saved credentials and token cache"
+            "text": "Remove the stored Google OAuth token",
+            "variables": [
+              {
+                "name": "tokenFile",
+                "text": "Where the OAuth token is stored",
+                "default": "${aux4HomeDir}/.oauth/google.json",
+                "env": "AUX4_GOOGLE_TOKEN_FILE"
+              }
+            ]
           }
         }
       ]
@@ -120,17 +159,43 @@
         {
           "name": "list",
           "execute": [
-            "nout:aux4 google --json | jq -r '[.[] | select(.name != \"auth\" and .name != \"services\") | .name] | .[]' | while read -r svc; do aux4 google \"$svc\" services 2>/dev/null; done | jq -s 'unique_by(.name)'",
-            "if(json==true) && echo '${response}' || echo '${response}' | jq -r '.[] | \"\\u001b[33m\\(.name)\\u001b[0m\\n  \\(.description)\\n  scope: \\(.scope)\\n\"'"
+            "when:${json}==true:aux4 google services scan param(services) | aux4 json collect",
+            "when:${json}!=true:aux4 google services scan param(services) | aux4 json collect | aux4 render list --primary name --secondary description --badge scope"
           ],
           "help": {
             "text": "List available Google services from installed packages",
             "variables": [
               {
+                "name": "services",
+                "text": "Comma-separated services to list (default: all installed)",
+                "default": ""
+              },
+              {
                 "name": "json",
                 "text": "Output as JSON",
                 "default": "false",
                 "hide": true
+              }
+            ]
+          }
+        },
+        {
+          "name": "scan",
+          "private": true,
+          "execute": [
+            "set:ignoreErrors=true",
+            "when:${services}==:json:aux4 google --json",
+            "when:${services}==:each:aux4 google ${item.name} services >ignoreError",
+            "when:${services}!=:nout:echo value(services) | tr ',' '\\n'",
+            "when:${services}!=:each:aux4 google value(item) services >ignoreError"
+          ],
+          "help": {
+            "text": "Emit the metadata of every resolvable Google service, one JSON object per line",
+            "variables": [
+              {
+                "name": "services",
+                "text": "Comma-separated services to scan (default: all installed)",
+                "default": ""
               }
             ]
           }

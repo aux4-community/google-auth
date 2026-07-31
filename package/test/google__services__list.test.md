@@ -1,13 +1,37 @@
 # google services list
 
-## should list available services
+## with JSON output
 
-### should include sheets and drive
+### should return a JSON array
 
 ```execute
-aux4 google services list
+aux4 google services list --json true
 ```
 
-```expect:partial
-sheets
+```expect:regex
+^\[.*\]$
+```
+
+## with a service filter
+
+### should return an empty array when no installed package provides the service
+
+```execute
+aux4 google services list --services not-a-google-service --json true
+```
+
+```expect
+[]
+```
+
+## with an empty result
+
+### should print nothing when no service matches
+
+```execute
+aux4 google services list --services not-a-google-service
+```
+
+```expect
+
 ```
